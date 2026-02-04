@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mutual Fund NAV Finder – FinTrust Creations</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<style>
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  padding:16px;
+  background:#f4f6f8;
+  font-family:Arial, sans-serif;
+}
+
+.nav-card{
+  width:100%;
+  max-width:500px;
+  margin:0 auto;
+  background:#fff;
+  border-radius:12px;
+  box-shadow:0 6px 20px rgba(0,0,0,.08);
+  padding:20px;
+}
+
+/* ✅ FINTRUST HEADER */
+.header{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:16px;
+}
+
+.fc-logo{
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  background:#18a873;
+  color:#fff;
+  font-weight:bold;
+  font-size:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.brand-text{ line-height:1.2; }
+
+.brand-name{
+  font-size:22px;
+  font-weight:700;
+  color:#18a873;
+}
+
+.tool-name{
+  font-size:13px;
+  color:#666;
+}
+
+.nav-input{
+  width:100%;
+  padding:12px;
+  font-size:15px;
+  border:1px solid #ccc;
+  border-radius:8px;
+}
+
+.suggestions{
+  margin-top:6px;
+  border:1px solid #ddd;
+  border-radius:8px;
+  max-height:180px;
+  overflow-y:auto;
+  display:none;
+  background:#fff;
+}
+
+.suggestion-item{
+  padding:10px;
+  border-bottom:1px solid #eee;
+  cursor:pointer;
+}
+
+.suggestion-item:hover{
+  background:#f1f8f4;
+}
+
+.nav-btn{
+  width:100%;
+  margin-top:12px;
+  padding:12px;
+  font-size:16px;
+  background:#2e7d32;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+}
+
+.reset-btn{
+  width:100%;
+  margin-top:8px;
+  padding:10px;
+  font-size:14px;
+  background:#9e9e9e;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+}
+
+.result{
+  margin-top:15px;
+  font-size:14px;
+  line-height:1.6;
+}
+
+.returns-table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:12px;
+}
+
+.returns-table th,
+.returns-table td{
+  padding:8px;
+  border:1px solid #ddd;
+}
+
+.returns-table th{
+  background:#e8f5e9;
+  color:#2e7d32;
+  text-align:left;
+}
+
+.share-buttons{
+  display:flex;
+  gap:10px;
+  margin-top:12px;
+}
+
+.share-buttons button{
+  flex:1;
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  font-size:14px;
+  color:#fff;
+  cursor:pointer;
+}
+
+.whatsapp{ background:#25D366; }
+.email{ background:#1976d2; }
+
+.error{
+  color:#c62828;
+  text-align:center;
+  margin-top:10px;
+}
+
+.footer-note{
+  text-align:center;
+  font-size:12px;
+  margin-top:15px;
+  color:#777;
+}
+</style>
+</head>
+
+<body>
+
+<div class="nav-card">
+
+  <!-- ✅ LOGO + BRAND -->
+  <div class="header">
+    <div class="fc-logo">FC</div>
+    <div class="brand-text">
+      <div class="brand-name">FinTrust Creations</div>
+      <div class="tool-name">Mutual Fund NAV Finder</div>
+    </div>
+  </div>
+
+  <input id="schemeInput" class="nav-input"
+         placeholder="Type scheme name (e.g. SBI Bluechip)"
+         autocomplete="off">
+
+  <div id="suggestions" class="suggestions"></div>
+
+  <button class="nav-btn" onclick="fetchNAV()">Get NAV</button>
+  <button class="reset-btn" onclick="resetTool()">Reset</button>
+
+  <div id="output" class="result"></div>
+  <div id="error" class="error"></div>
+
+  <div class="footer-note">
+    © <span id="year"></span> FinTrust Creations · NAVs are indicative and for information only. Investments are subject to market risks. Returns are CAGR & indicative only · Source: AMFI
+
+  </div>
+</div>
+
+<script>
+let schemes = [];
+let selectedSchemeCode = "";
+let shareText = "";
+
+/* Auto Year */
+document.getElementById("year").textContent = new Date().getFullYear();
+
+/* Load scheme list */
+fetch("https://api.mfapi.in/mf")
+  .then(r => r.json())
+  .then(d => schemes = d);
+
+const input = document.getElementById("schemeInput");
+const suggestions = document.getElementById("suggestions");
+
+/* Autocomplete */
+input.addEventListener("input", () => {
+  const q = input.value.toLowerCase();
+  suggestions.innerHTML = "";
+  selectedSchemeCode = "";
+
+  if(q.length < 3){
+    suggestions.style.display = "none";
+    return;
+  }
+
+  schemes
+    .filter(s => s.schemeName.toLowerCase().includes(q))
+    .slice(0,10)
+    .forEach(s => {
+      const div = document.createElement("div");
+      div.className = "suggestion-item";
+      div.textContent = s.schemeName;
+      div.onclick = () => {
+        input.value = s.schemeName;
+        selectedSchemeCode = s.schemeCode;
+        suggestions.style.display = "none";
+      };
+      suggestions.appendChild(div);
+    });
+
+  suggestions.style.display = "block";
+});
+
+/* Reset */
+function resetTool(){
+  input.value = "";
+  suggestions.innerHTML = "";
+  suggestions.style.display = "none";
+  document.getElementById("output").innerHTML = "";
+  document.getElementById("error").textContent = "";
+  selectedSchemeCode = "";
+}
+
+/* Helpers */
+function parseDate(d){
+  const p = d.split("-");
+  return new Date(p[2], p[1]-1, p[0]);
+}
+
+function findClosestNAV(list, targetDate){
+  for(const n of list){
+    if(parseDate(n.date) <= targetDate){
+      return n;
+    }
+  }
+  return null;
+}
+
+function cagr(curr, past, years){
+  return ((curr / past) ** (1 / years) - 1) * 100;
+}
+
+function getReturn(list, latest, years){
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - years);
+  const old = findClosestNAV(list, d);
+  if(!old) return "NA";
+  return cagr(Number(latest.nav), Number(old.nav), years).toFixed(2) + "%";
+}
+
+/* Share */
+function shareWhatsApp(){
+  window.open("https://wa.me/?text=" + encodeURIComponent(shareText), "_blank");
+}
+
+function shareEmail(){
+  window.location.href =
+    "mailto:?subject=Mutual Fund NAV Details&body=" +
+    encodeURIComponent(shareText);
+}
+
+/* Fetch NAV */
+function fetchNAV(){
+  const out = document.getElementById("output");
+  const err = document.getElementById("error");
+  out.innerHTML = "";
+  err.textContent = "";
+
+  if(!selectedSchemeCode){
+    err.textContent = "Please select a scheme from the list.";
+    return;
+  }
+
+  fetch("https://api.mfapi.in/mf/" + selectedSchemeCode)
+    .then(r => r.json())
+    .then(d => {
+      const latest = d.data[0];
+
+      const r1  = getReturn(d.data, latest, 1);
+      const r3  = getReturn(d.data, latest, 3);
+      const r5  = getReturn(d.data, latest, 5);
+      const r10 = getReturn(d.data, latest, 10);
+      const r15 = getReturn(d.data, latest, 15);
+
+      shareText =
+`Mutual Fund NAV Details
+
+Scheme: ${d.meta.scheme_name}
+Fund House: ${d.meta.fund_house}
+
+Latest NAV: Rs. ${latest.nav}
+NAV Date: ${latest.date}
+
+Returns (CAGR):
+1Y  : ${r1}
+3Y  : ${r3}
+5Y  : ${r5}
+10Y : ${r10}
+15Y : ${r15}
+
+- FinTrust Creations`;
+
+      out.innerHTML = `
+        <strong>Scheme:</strong> ${d.meta.scheme_name}<br>
+        <strong>Fund House:</strong> ${d.meta.fund_house}<br><hr>
+
+        <strong>Latest NAV:</strong> ₹ ${latest.nav}<br>
+        <strong>NAV Date:</strong> ${latest.date}
+
+        <table class="returns-table">
+          <tr><th>Period</th><th>Returns (CAGR)</th></tr>
+          <tr><td>1 Year</td><td>${r1}</td></tr>
+          <tr><td>3 Years</td><td>${r3}</td></tr>
+          <tr><td>5 Years</td><td>${r5}</td></tr>
+          <tr><td>10 Years</td><td>${r10}</td></tr>
+          <tr><td>15 Years</td><td>${r15}</td></tr>
+        </table>
+
+        <div class="share-buttons">
+          <button class="whatsapp" onclick="shareWhatsApp()">WhatsApp</button>
+          <button class="email" onclick="shareEmail()">Email</button>
+        </div>
+      `;
+    });
+}
+</script>
+
+<!-- BACK BUTTON - LEFT ARROW (Same style as scroll top) -->
+<style>
+#backBtn {
+  position: fixed;
+  left: 20px;
+  bottom: 25px;
+  width: 55px;
+  height: 55px;
+  background-color: #f2f2f2;  /* off-white */
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+#backBtn svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: #000000;      /* BLACK arrow */
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Hover effect */
+#backBtn:hover {
+  background-color: #e6e6e6;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+}
+</style>
+
+<a href="https://rethna1.github.io/fintrust140/" id="backBtn" title="Back">
+  <svg viewBox="0 0 24 24">
+    <!-- LEFT POINTING ARROW (same style as scroll button) -->
+    <path d="M15 6l-6 6 6 6" />
+  </svg>
+</a>
+
+</body>
+</html>
